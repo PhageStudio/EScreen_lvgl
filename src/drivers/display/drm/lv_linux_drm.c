@@ -41,6 +41,7 @@ typedef struct {
     uint32_t pitch;
     uint32_t offset;
     unsigned long int size;
+    uint8_t * buffer;
     uint8_t * map;
     uint32_t fb_handle;
 } drm_buffer_t;
@@ -155,22 +156,22 @@ void lv_linux_drm_set_file(lv_display_t * disp, const char * file, int64_t conne
 
     int32_t hor_res = drm_dev->width;
     int32_t ver_res = drm_dev->height;
-    int32_t width = drm_dev->mmWidth;
+    int32_t width   = drm_dev->mmWidth;
 
     size_t buf_size = LV_MIN(drm_dev->drm_bufs[1].size, drm_dev->drm_bufs[0].size);
     /* Resolution must be set first because if the screen is smaller than the size passed
      * to lv_display_create then the buffers aren't big enough for LV_DISPLAY_RENDER_MODE_DIRECT.
      */
     lv_display_set_resolution(disp, hor_res, ver_res);
-    lv_display_set_buffers(disp, drm_dev->drm_bufs[1].map, drm_dev->drm_bufs[0].map, buf_size,
-                           LV_DISPLAY_RENDER_MODE_DIRECT);
+    lv_display_set_buffers(disp, drm_dev->drm_bufs[1].buffer, drm_dev->drm_bufs[0].buffer, buf_size,
+                           LV_DISPLAY_RENDER_MODE_FULL);
 
     if(width) {
         lv_display_set_dpi(disp, DIV_ROUND_UP(hor_res * 25400, width * 1000));
     }
 
-    LV_LOG_INFO("Resolution is set to %" LV_PRId32 "x%" LV_PRId32 " at %" LV_PRId32 "dpi",
-                hor_res, ver_res, lv_display_get_dpi(disp));
+    LV_LOG_INFO("Resolution is set to %" LV_PRId32 "x%" LV_PRId32 " at %" LV_PRId32 "dpi", hor_res, ver_res,
+                lv_display_get_dpi(disp));
 }
 
 /**********************
@@ -184,8 +185,7 @@ static uint32_t get_plane_property_id(drm_dev_t * drm_dev, const char * name)
     LV_LOG_TRACE("Find plane property: %s", name);
 
     for(i = 0; i < drm_dev->count_plane_props; ++i)
-        if(!lv_strcmp(drm_dev->plane_props[i]->name, name))
-            return drm_dev->plane_props[i]->prop_id;
+        if(!lv_strcmp(drm_dev->plane_props[i]->name, name)) return drm_dev->plane_props[i]->prop_id;
 
     LV_LOG_TRACE("Unknown plane property: %s", name);
 
@@ -199,8 +199,7 @@ static uint32_t get_crtc_property_id(drm_dev_t * drm_dev, const char * name)
     LV_LOG_TRACE("Find crtc property: %s", name);
 
     for(i = 0; i < drm_dev->count_crtc_props; ++i)
-        if(!lv_strcmp(drm_dev->crtc_props[i]->name, name))
-            return drm_dev->crtc_props[i]->prop_id;
+        if(!lv_strcmp(drm_dev->crtc_props[i]->name, name)) return drm_dev->crtc_props[i]->prop_id;
 
     LV_LOG_TRACE("Unknown crtc property: %s", name);
 
@@ -214,8 +213,7 @@ static uint32_t get_conn_property_id(drm_dev_t * drm_dev, const char * name)
     LV_LOG_TRACE("Find conn property: %s", name);
 
     for(i = 0; i < drm_dev->count_conn_props; ++i)
-        if(!lv_strcmp(drm_dev->conn_props[i]->name, name))
-            return drm_dev->conn_props[i]->prop_id;
+        if(!lv_strcmp(drm_dev->conn_props[i]->name, name)) return drm_dev->conn_props[i]->prop_id;
 
     LV_LOG_TRACE("Unknown conn property: %s", name);
 
@@ -241,8 +239,8 @@ static int drm_get_plane_props(drm_dev_t * drm_dev)
 {
     uint32_t i;
 
-    drmModeObjectPropertiesPtr props = drmModeObjectGetProperties(drm_dev->fd, drm_dev->plane_id,
-                                                                  DRM_MODE_OBJECT_PLANE);
+    drmModeObjectPropertiesPtr props =
+        drmModeObjectGetProperties(drm_dev->fd, drm_dev->plane_id, DRM_MODE_OBJECT_PLANE);
     if(!props) {
         LV_LOG_ERROR("drmModeObjectGetProperties failed");
         return -1;
@@ -262,8 +260,7 @@ static int drm_get_crtc_props(drm_dev_t * drm_dev)
 {
     uint32_t i;
 
-    drmModeObjectPropertiesPtr props = drmModeObjectGetProperties(drm_dev->fd, drm_dev->crtc_id,
-                                                                  DRM_MODE_OBJECT_CRTC);
+    drmModeObjectPropertiesPtr props = drmModeObjectGetProperties(drm_dev->fd, drm_dev->crtc_id, DRM_MODE_OBJECT_CRTC);
     if(!props) {
         LV_LOG_ERROR("drmModeObjectGetProperties failed");
         return -1;
@@ -283,8 +280,8 @@ static int drm_get_conn_props(drm_dev_t * drm_dev)
 {
     uint32_t i;
 
-    drmModeObjectPropertiesPtr props = drmModeObjectGetProperties(drm_dev->fd, drm_dev->conn_id,
-                                                                  DRM_MODE_OBJECT_CONNECTOR);
+    drmModeObjectPropertiesPtr props =
+        drmModeObjectGetProperties(drm_dev->fd, drm_dev->conn_id, DRM_MODE_OBJECT_CONNECTOR);
     if(!props) {
         LV_LOG_ERROR("drmModeObjectGetProperties failed");
         return -1;
@@ -361,7 +358,7 @@ static int drm_dmabuf_set_plane(drm_dev_t * drm_dev, drm_buffer_t * buf)
 {
     int ret;
     static int first = 1;
-    uint32_t flags = DRM_MODE_PAGE_FLIP_EVENT | DRM_MODE_ATOMIC_NONBLOCK;
+    uint32_t flags   = DRM_MODE_PAGE_FLIP_EVENT | DRM_MODE_ATOMIC_NONBLOCK;
 
     drm_dev->req = drmModeAtomicAlloc();
 
@@ -406,7 +403,7 @@ static int find_plane(drm_dev_t * drm_dev, unsigned int fourcc, uint32_t * plane
     drmModePlanePtr plane;
     unsigned int i;
     unsigned int j;
-    int ret = 0;
+    int ret             = 0;
     unsigned int format = fourcc;
 
     planes = drmModeGetPlaneResources(drm_dev->fd);
@@ -430,8 +427,7 @@ static int find_plane(drm_dev_t * drm_dev, unsigned int fourcc, uint32_t * plane
         }
 
         for(j = 0; j < plane->count_formats; ++j) {
-            if(plane->formats[j] == format)
-                break;
+            if(plane->formats[j] == format) break;
         }
 
         if(j == plane->count_formats) {
@@ -447,8 +443,7 @@ static int find_plane(drm_dev_t * drm_dev, unsigned int fourcc, uint32_t * plane
         break;
     }
 
-    if(i == planes->count_planes)
-        ret = -1;
+    if(i == planes->count_planes) ret = -1;
 
     drmModeFreePlaneResources(planes);
 
@@ -458,7 +453,7 @@ static int find_plane(drm_dev_t * drm_dev, unsigned int fourcc, uint32_t * plane
 static int drm_find_connector(drm_dev_t * drm_dev, int64_t connector_id)
 {
     drmModeConnector * conn = NULL;
-    drmModeEncoder * enc = NULL;
+    drmModeEncoder * enc    = NULL;
     drmModeRes * res;
     int i;
 
@@ -475,8 +470,7 @@ static int drm_find_connector(drm_dev_t * drm_dev, int64_t connector_id)
     /* find all available connectors */
     for(i = 0; i < res->count_connectors; i++) {
         conn = drmModeGetConnector(drm_dev->fd, res->connectors[i]);
-        if(!conn)
-            continue;
+        if(!conn) continue;
 
         if(connector_id >= 0 && conn->connector_id != connector_id) {
             drmModeFreeConnector(conn);
@@ -496,8 +490,7 @@ static int drm_find_connector(drm_dev_t * drm_dev, int64_t connector_id)
             LV_LOG_TRACE("drm: connector %d: unknown", conn->connector_id);
         }
 
-        if(conn->connection == DRM_MODE_CONNECTED && conn->count_modes > 0)
-            break;
+        if(conn->connection == DRM_MODE_CONNECTED && conn->count_modes > 0) break;
 
         drmModeFreeConnector(conn);
         conn = NULL;
@@ -510,29 +503,26 @@ static int drm_find_connector(drm_dev_t * drm_dev, int64_t connector_id)
 
     drm_dev->conn_id = conn->connector_id;
     LV_LOG_TRACE("conn_id: %d", drm_dev->conn_id);
-    drm_dev->mmWidth = conn->mmWidth;
+    drm_dev->mmWidth  = conn->mmWidth;
     drm_dev->mmHeight = conn->mmHeight;
 
     lv_memcpy(&drm_dev->mode, &conn->modes[0], sizeof(drmModeModeInfo));
 
-    if(drmModeCreatePropertyBlob(drm_dev->fd, &drm_dev->mode, sizeof(drm_dev->mode),
-                                 &drm_dev->blob_id)) {
+    if(drmModeCreatePropertyBlob(drm_dev->fd, &drm_dev->mode, sizeof(drm_dev->mode), &drm_dev->blob_id)) {
         LV_LOG_ERROR("error creating mode blob");
         goto free_res;
     }
 
-    drm_dev->width = conn->modes[0].hdisplay;
+    drm_dev->width  = conn->modes[0].hdisplay;
     drm_dev->height = conn->modes[0].vdisplay;
 
-    for(i = 0 ; i < res->count_encoders; i++) {
+    for(i = 0; i < res->count_encoders; i++) {
         enc = drmModeGetEncoder(drm_dev->fd, res->encoders[i]);
-        if(!enc)
-            continue;
+        if(!enc) continue;
 
         LV_LOG_TRACE("enc%d enc_id %d conn enc_id %d", i, enc->encoder_id, conn->encoder_id);
 
-        if(enc->encoder_id == conn->encoder_id)
-            break;
+        if(enc->encoder_id == conn->encoder_id) break;
 
         drmModeFreeEncoder(enc);
         enc = NULL;
@@ -551,10 +541,9 @@ static int drm_find_connector(drm_dev_t * drm_dev, int64_t connector_id)
             int crtc, crtc_id = -1;
 
             enc = drmModeGetEncoder(drm_dev->fd, conn->encoders[i]);
-            if(!enc)
-                continue;
+            if(!enc) continue;
 
-            for(crtc = 0 ; crtc < res->count_crtcs; crtc++) {
+            for(crtc = 0; crtc < res->count_crtcs; crtc++) {
                 uint32_t crtc_mask = 1 << crtc;
 
                 crtc_id = res->crtcs[crtc];
@@ -562,8 +551,7 @@ static int drm_find_connector(drm_dev_t * drm_dev, int64_t connector_id)
                 LV_LOG_TRACE("enc_id %d crtc%d id %d mask %x possible %x", enc->encoder_id, crtc, crtc_id, crtc_mask,
                              enc->possible_crtcs);
 
-                if(enc->possible_crtcs & crtc_mask)
-                    break;
+                if(enc->possible_crtcs & crtc_mask) break;
             }
 
             if(crtc_id > 0) {
@@ -623,8 +611,7 @@ static int drm_open(const char * path)
     }
 
     /* set FD_CLOEXEC flag */
-    if((flags = fcntl(fd, F_GETFD)) < 0 ||
-       fcntl(fd, F_SETFD, flags | FD_CLOEXEC) < 0) {
+    if((flags = fcntl(fd, F_GETFD)) < 0 || fcntl(fd, F_SETFD, flags | FD_CLOEXEC) < 0) {
         LV_LOG_ERROR("fcntl FD_CLOEXEC failed");
         goto err;
     }
@@ -633,7 +620,8 @@ static int drm_open(const char * path)
     ret = drmGetCap(fd, DRM_CAP_DUMB_BUFFER, &has_dumb);
     if(ret < 0 || has_dumb == 0) {
         LV_LOG_ERROR("drmGetCap DRM_CAP_DUMB_BUFFER failed or \"%s\" doesn't have dumb "
-                     "buffer", path);
+                     "buffer",
+                     path);
         goto err;
     }
 
@@ -648,8 +636,7 @@ static int drm_setup(drm_dev_t * drm_dev, const char * device_path, int64_t conn
     int ret;
 
     drm_dev->fd = drm_open(device_path);
-    if(drm_dev->fd < 0)
-        return -1;
+    if(drm_dev->fd < 0) return -1;
 
     ret = drmSetClientCap(drm_dev->fd, DRM_CLIENT_CAP_ATOMIC, 1);
     if(ret) {
@@ -705,16 +692,16 @@ static int drm_setup(drm_dev_t * drm_dev, const char * device_path, int64_t conn
         goto err;
     }
 
-    drm_dev->drm_event_ctx.version = DRM_EVENT_CONTEXT_VERSION;
+    drm_dev->drm_event_ctx.version           = DRM_EVENT_CONTEXT_VERSION;
     drm_dev->drm_event_ctx.page_flip_handler = page_flip_handler;
-    drm_dev->fourcc = fourcc;
+    drm_dev->fourcc                          = fourcc;
 
-    LV_LOG_INFO("drm: Found plane_id: %u connector_id: %d crtc_id: %d",
-                drm_dev->plane_id, drm_dev->conn_id, drm_dev->crtc_id);
+    LV_LOG_INFO("drm: Found plane_id: %u connector_id: %d crtc_id: %d", drm_dev->plane_id, drm_dev->conn_id,
+                drm_dev->crtc_id);
 
-    LV_LOG_INFO("drm: %dx%d (%dmm X% dmm) pixel format %c%c%c%c",
-                drm_dev->width, drm_dev->height, drm_dev->mmWidth, drm_dev->mmHeight,
-                (fourcc >> 0) & 0xff, (fourcc >> 8) & 0xff, (fourcc >> 16) & 0xff, (fourcc >> 24) & 0xff);
+    LV_LOG_INFO("drm: %dx%d (%dmm X% dmm) pixel format %c%c%c%c", drm_dev->width, drm_dev->height, drm_dev->mmWidth,
+                drm_dev->mmHeight, (fourcc >> 0) & 0xff, (fourcc >> 8) & 0xff, (fourcc >> 16) & 0xff,
+                (fourcc >> 24) & 0xff);
 
     return 0;
 
@@ -732,23 +719,23 @@ static int drm_allocate_dumb(drm_dev_t * drm_dev, drm_buffer_t * buf)
 
     /* create dumb buffer */
     lv_memzero(&creq, sizeof(creq));
-    creq.width = drm_dev->width;
+    creq.width  = drm_dev->width;
     creq.height = drm_dev->height;
-    creq.bpp = LV_COLOR_DEPTH;
-    ret = drmIoctl(drm_dev->fd, DRM_IOCTL_MODE_CREATE_DUMB, &creq);
+    creq.bpp    = LV_COLOR_DEPTH;
+    ret         = drmIoctl(drm_dev->fd, DRM_IOCTL_MODE_CREATE_DUMB, &creq);
     if(ret < 0) {
         LV_LOG_ERROR("DRM_IOCTL_MODE_CREATE_DUMB fail");
         return -1;
     }
 
     buf->handle = creq.handle;
-    buf->pitch = creq.pitch;
-    buf->size = creq.size;
+    buf->pitch  = creq.pitch;
+    buf->size   = creq.size;
 
     /* prepare buffer for memory mapping */
     lv_memzero(&mreq, sizeof(mreq));
     mreq.handle = creq.handle;
-    ret = drmIoctl(drm_dev->fd, DRM_IOCTL_MODE_MAP_DUMB, &mreq);
+    ret         = drmIoctl(drm_dev->fd, DRM_IOCTL_MODE_MAP_DUMB, &mreq);
     if(ret) {
         LV_LOG_ERROR("DRM_IOCTL_MODE_MAP_DUMB fail");
         return -1;
@@ -764,6 +751,12 @@ static int drm_allocate_dumb(drm_dev_t * drm_dev, drm_buffer_t * buf)
         return -1;
     }
 
+    buf->buffer = lv_malloc_zeroed(buf->size);
+    if(buf->buffer == NULL) {
+        LV_LOG_ERROR("malloc fail");
+        return -1;
+    }
+
     /* clear the framebuffer to 0 (= full transparency in ARGB8888) */
     lv_memzero(buf->map, creq.size);
 
@@ -771,8 +764,8 @@ static int drm_allocate_dumb(drm_dev_t * drm_dev, drm_buffer_t * buf)
     handles[0] = creq.handle;
     pitches[0] = creq.pitch;
     offsets[0] = 0;
-    ret = drmModeAddFB2(drm_dev->fd, drm_dev->width, drm_dev->height, drm_dev->fourcc,
-                        handles, pitches, offsets, &buf->fb_handle, 0);
+    ret        = drmModeAddFB2(drm_dev->fd, drm_dev->width, drm_dev->height, drm_dev->fourcc, handles, pitches, offsets,
+                               &buf->fb_handle, 0);
     if(ret) {
         LV_LOG_ERROR("drmModeAddFB fail");
         return -1;
@@ -787,12 +780,10 @@ static int drm_setup_buffers(drm_dev_t * drm_dev)
 
     /*Allocate DUMB buffers*/
     ret = drm_allocate_dumb(drm_dev, &drm_dev->drm_bufs[0]);
-    if(ret)
-        return ret;
+    if(ret) return ret;
 
     ret = drm_allocate_dumb(drm_dev, &drm_dev->drm_bufs[1]);
-    if(ret)
-        return ret;
+    if(ret) return ret;
 
     return 0;
 }
@@ -802,7 +793,7 @@ static void drm_flush_wait(lv_display_t * disp)
     drm_dev_t * drm_dev = lv_display_get_driver_data(disp);
 
     struct pollfd pfd;
-    pfd.fd = drm_dev->fd;
+    pfd.fd     = drm_dev->fd;
     pfd.events = POLLIN;
 
     while(drm_dev->req) {
@@ -828,8 +819,35 @@ static void drm_flush(lv_display_t * disp, const lv_area_t * area, uint8_t * px_
     LV_UNUSED(px_map);
     drm_dev_t * drm_dev = lv_display_get_driver_data(disp);
 
+    int32_t w                      = lv_area_get_width(area);
+    int32_t h                      = lv_area_get_height(area);
+    lv_color_format_t cf           = lv_display_get_color_format(disp);
+    uint32_t px_size               = lv_color_format_get_size(cf);
+    lv_display_rotation_t rotation = lv_display_get_rotation(disp);
+
     for(int idx = 0; idx < 2; idx++) {
-        if(drm_dev->drm_bufs[idx].map == px_map) {
+        if(drm_dev->drm_bufs[idx].buffer == px_map) {
+            if(rotation != LV_DISPLAY_ROTATION_0) {
+                size_t buf_size = w * h * px_size;
+                /* Rotate the pixel buffer */
+                uint32_t w_stride = lv_draw_buf_width_to_stride(w, cf);
+                uint32_t h_stride = lv_draw_buf_width_to_stride(h, cf);
+
+                switch(rotation) {
+                    case LV_DISPLAY_ROTATION_0:
+                        break;
+                    case LV_DISPLAY_ROTATION_90:
+                        lv_draw_sw_rotate(px_map, drm_dev->drm_bufs[idx].map, w, h, w_stride, h_stride, rotation, cf);
+                        break;
+                    case LV_DISPLAY_ROTATION_180:
+                        lv_draw_sw_rotate(px_map, drm_dev->drm_bufs[idx].map, w, h, w_stride, w_stride, rotation, cf);
+                        break;
+                    case LV_DISPLAY_ROTATION_270:
+                        lv_draw_sw_rotate(px_map, drm_dev->drm_bufs[idx].map, w, h, w_stride, h_stride, rotation, cf);
+                        break;
+                }
+            }
+
             /*Request buffer swap*/
             if(drm_dmabuf_set_plane(drm_dev, &drm_dev->drm_bufs[idx])) {
                 LV_LOG_ERROR("Flush fail");
