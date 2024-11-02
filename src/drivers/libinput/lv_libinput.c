@@ -432,6 +432,7 @@ static void _read_pointer(lv_libinput_t * dsc, struct libinput_event * event)
     /* We need to read unrotated display dimensions directly from the driver because libinput won't account
      * for any rotation inside of LVGL */
     lv_display_t * disp = lv_display_get_default();
+    lv_display_rotation_t rotation = lv_display_get_rotation(disp);
 
     /* ignore more than 2 fingers as it will only confuse LVGL */
     if(touch_event && (slot = libinput_event_touch_get_slot(touch_event)) > 1)
@@ -513,10 +514,32 @@ static void _read_pointer(lv_libinput_t * dsc, struct libinput_event * event)
             dsc->slots[slot].pressed = evt->pressed;
             break;
         case LIBINPUT_EVENT_POINTER_MOTION:
-            dsc->pointer_position.x = (int32_t)LV_CLAMP(0, dsc->pointer_position.x + libinput_event_pointer_get_dx(pointer_event),
-                                                        disp->hor_res - 1);
-            dsc->pointer_position.y = (int32_t)LV_CLAMP(0, dsc->pointer_position.y + libinput_event_pointer_get_dy(pointer_event),
-                                                        disp->ver_res - 1);
+            switch(rotation) {
+                case LV_DISPLAY_ROTATION_0:
+                    dsc->pointer_position.x = (int32_t)LV_CLAMP(
+                        0, (dsc->pointer_position.x + libinput_event_pointer_get_dx(pointer_event)), disp->hor_res - 1);
+                    dsc->pointer_position.y = (int32_t)LV_CLAMP(
+                        0, (dsc->pointer_position.y + libinput_event_pointer_get_dy(pointer_event)), disp->ver_res - 1);
+                    break;
+                case LV_DISPLAY_ROTATION_90:
+                    dsc->pointer_position.x = (int32_t)LV_CLAMP(
+                        0, (dsc->pointer_position.x + libinput_event_pointer_get_dy(pointer_event)), disp->hor_res - 1);
+                    dsc->pointer_position.y = (int32_t)LV_CLAMP(
+                        0, (dsc->pointer_position.y - libinput_event_pointer_get_dx(pointer_event)), disp->ver_res - 1);
+                    break;
+                case LV_DISPLAY_ROTATION_180:
+                    dsc->pointer_position.x = (int32_t)LV_CLAMP(
+                        0, (dsc->pointer_position.x - libinput_event_pointer_get_dx(pointer_event)), disp->hor_res - 1);
+                    dsc->pointer_position.y = (int32_t)LV_CLAMP(
+                        0, (dsc->pointer_position.y - libinput_event_pointer_get_dy(pointer_event)), disp->ver_res - 1);
+                    break;
+                case LV_DISPLAY_ROTATION_270:
+                    dsc->pointer_position.x = (int32_t)LV_CLAMP(
+                        0, (dsc->pointer_position.x - libinput_event_pointer_get_dy(pointer_event)), disp->hor_res - 1);
+                    dsc->pointer_position.y = (int32_t)LV_CLAMP(
+                        0, (dsc->pointer_position.y + libinput_event_pointer_get_dx(pointer_event)), disp->ver_res - 1);
+                    break;
+            }
             evt->point.x = dsc->pointer_position.x;
             evt->point.y = dsc->pointer_position.y;
             evt->pressed = dsc->pointer_button_down;
