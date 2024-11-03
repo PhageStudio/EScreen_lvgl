@@ -30,7 +30,7 @@ extern "C" {
  * GLOBAL PROTOTYPES
  **********************/
 lv_display_t * lv_linux_drm_create(void);
-
+void lv_linux_drm_destory(lv_display_t * disp);
 void lv_linux_drm_set_file(lv_display_t * disp, const char * file, int64_t connector_id);
 
 /**********************

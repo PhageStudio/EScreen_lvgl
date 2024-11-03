@@ -517,27 +517,27 @@ static void _read_pointer(lv_libinput_t * dsc, struct libinput_event * event)
             switch(rotation) {
                 case LV_DISPLAY_ROTATION_0:
                     dsc->pointer_position.x = (int32_t)LV_CLAMP(
-                        0, (dsc->pointer_position.x + libinput_event_pointer_get_dx(pointer_event)), disp->hor_res - 1);
+                                                  0, (dsc->pointer_position.x + libinput_event_pointer_get_dx(pointer_event)), disp->hor_res - 1);
                     dsc->pointer_position.y = (int32_t)LV_CLAMP(
-                        0, (dsc->pointer_position.y + libinput_event_pointer_get_dy(pointer_event)), disp->ver_res - 1);
+                                                  0, (dsc->pointer_position.y + libinput_event_pointer_get_dy(pointer_event)), disp->ver_res - 1);
                     break;
                 case LV_DISPLAY_ROTATION_90:
                     dsc->pointer_position.x = (int32_t)LV_CLAMP(
-                        0, (dsc->pointer_position.x + libinput_event_pointer_get_dy(pointer_event)), disp->hor_res - 1);
+                                                  0, (dsc->pointer_position.x + libinput_event_pointer_get_dy(pointer_event)), disp->hor_res - 1);
                     dsc->pointer_position.y = (int32_t)LV_CLAMP(
-                        0, (dsc->pointer_position.y - libinput_event_pointer_get_dx(pointer_event)), disp->ver_res - 1);
+                                                  0, (dsc->pointer_position.y - libinput_event_pointer_get_dx(pointer_event)), disp->ver_res - 1);
                     break;
                 case LV_DISPLAY_ROTATION_180:
                     dsc->pointer_position.x = (int32_t)LV_CLAMP(
-                        0, (dsc->pointer_position.x - libinput_event_pointer_get_dx(pointer_event)), disp->hor_res - 1);
+                                                  0, (dsc->pointer_position.x - libinput_event_pointer_get_dx(pointer_event)), disp->hor_res - 1);
                     dsc->pointer_position.y = (int32_t)LV_CLAMP(
-                        0, (dsc->pointer_position.y - libinput_event_pointer_get_dy(pointer_event)), disp->ver_res - 1);
+                                                  0, (dsc->pointer_position.y - libinput_event_pointer_get_dy(pointer_event)), disp->ver_res - 1);
                     break;
                 case LV_DISPLAY_ROTATION_270:
                     dsc->pointer_position.x = (int32_t)LV_CLAMP(
-                        0, (dsc->pointer_position.x - libinput_event_pointer_get_dy(pointer_event)), disp->hor_res - 1);
+                                                  0, (dsc->pointer_position.x - libinput_event_pointer_get_dy(pointer_event)), disp->hor_res - 1);
                     dsc->pointer_position.y = (int32_t)LV_CLAMP(
-                        0, (dsc->pointer_position.y + libinput_event_pointer_get_dx(pointer_event)), disp->ver_res - 1);
+                                                  0, (dsc->pointer_position.y + libinput_event_pointer_get_dx(pointer_event)), disp->ver_res - 1);
                     break;
             }
             evt->point.x = dsc->pointer_position.x;

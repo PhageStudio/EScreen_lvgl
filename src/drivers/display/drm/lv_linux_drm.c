@@ -111,6 +111,38 @@ static uint32_t tick_get_cb(void);
  *   GLOBAL FUNCTIONS
  **********************/
 
+void lv_linux_drm_destory(lv_display_t * disp)
+{
+    if(!disp) {
+        LV_LOG_ERROR("DRM descory NULL");
+        return;
+    }
+
+    drm_dev_t * drm_dev = lv_display_get_driver_data(disp);
+    if(!drm_dev) {
+        LV_LOG_ERROR("DRM descory no device");
+        return;
+    }
+
+    if(drm_dev->drm_bufs[0].buffer != NULL) {
+        munmap(drm_dev->drm_bufs[0].map, drm_dev->drm_bufs[0].size);
+        lv_free(drm_dev->drm_bufs[0].buffer);
+    }
+
+    if(drm_dev->drm_bufs[1].buffer != NULL) {
+        munmap(drm_dev->drm_bufs[1].map, drm_dev->drm_bufs[1].size);
+        lv_free(drm_dev->drm_bufs[1].buffer);
+    }
+
+    if(drm_dev->fd > 0) {
+        close(drm_dev->fd);
+    }
+
+    lv_free(drm_dev);
+
+    LV_LOG_INFO("DRM descory");
+}
+
 lv_display_t * lv_linux_drm_create(void)
 {
     lv_tick_set_cb(tick_get_cb);
@@ -389,7 +421,8 @@ static int drm_dmabuf_set_plane(drm_dev_t * drm_dev, drm_buffer_t * buf)
     if(ret) {
         LV_LOG_ERROR("drmModeAtomicCommit failed: %s (%d)", strerror(errno), errno);
         drmModeAtomicFree(drm_dev->req);
-        return ret;
+        drm_dev->req = NULL;
+        return 0;
     }
 
     return 0;
