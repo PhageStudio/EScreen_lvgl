@@ -289,6 +289,14 @@ static void perf_observer_cb(lv_observer_t * observer, lv_subject_t * subject)
            perf->calculated.refr_avg_time, perf->calculated.render_avg_time, perf->calculated.flush_avg_time,
            perf->calculated.cpu);
 #else
+#if defined(LV_USE_PERF_MONITOR_ONLY_FPS) && LV_USE_PERF_MONITOR_ONLY_FPS
+    lv_obj_t * label = lv_observer_get_target(observer);
+    lv_label_set_text_fmt(
+        label,
+        "%" LV_PRIu32" FPS",
+        perf->calculated.fps
+    );
+#else
     lv_obj_t * label = lv_observer_get_target(observer);
     lv_label_set_text_fmt(
         label,
@@ -298,6 +306,7 @@ static void perf_observer_cb(lv_observer_t * observer, lv_subject_t * subject)
         perf->calculated.render_avg_time + perf->calculated.flush_avg_time,
         perf->calculated.render_avg_time, perf->calculated.flush_avg_time
     );
+#endif
 #endif /*LV_USE_PERF_MONITOR_LOG_MODE*/
 }
 
