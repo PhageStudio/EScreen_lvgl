@@ -855,13 +855,11 @@ static void drm_flush(lv_display_t * disp, const lv_area_t * area, uint8_t * px_
     int32_t w                      = lv_area_get_width(area);
     int32_t h                      = lv_area_get_height(area);
     lv_color_format_t cf           = lv_display_get_color_format(disp);
-    uint32_t px_size               = lv_color_format_get_size(cf);
     lv_display_rotation_t rotation = lv_display_get_rotation(disp);
 
     for(int idx = 0; idx < 2; idx++) {
         if(drm_dev->drm_bufs[idx].buffer == px_map) {
             if(rotation != LV_DISPLAY_ROTATION_0) {
-                size_t buf_size = w * h * px_size;
                 /* Rotate the pixel buffer */
                 uint32_t w_stride = lv_draw_buf_width_to_stride(w, cf);
                 uint32_t h_stride = lv_draw_buf_width_to_stride(h, cf);

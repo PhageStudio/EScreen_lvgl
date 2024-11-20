@@ -15,6 +15,7 @@ extern "C" {
  *********************/
 
 #include "../../../display/lv_display.h"
+#include "../../../draw/sw/lv_draw_sw.h"
 
 #if LV_USE_LINUX_DRM
 
