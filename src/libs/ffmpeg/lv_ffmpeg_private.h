@@ -31,6 +31,8 @@ struct lv_ffmpeg_player_t {
     lv_timer_t * timer;
     lv_image_dsc_t imgdsc;
     bool auto_restart;
+    void (*event_cb)(lv_obj_t * obj, void * user_data);
+    void * user_data;
     struct ffmpeg_context_s * ffmpeg_ctx;
 };
 

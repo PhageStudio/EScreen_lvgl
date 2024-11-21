@@ -80,6 +80,9 @@ void lv_ffmpeg_player_set_cmd(lv_obj_t * obj, lv_ffmpeg_player_cmd_t cmd);
  */
 void lv_ffmpeg_player_set_auto_restart(lv_obj_t * obj, bool en);
 
+void lv_ffmpeg_player_set_playdone_event(lv_obj_t * obj, void (*event_cb)(lv_obj_t * obj, void * user_data),
+                                         void * user_data);
+
 /*=====================
  * Other functions
  *====================*/

@@ -251,6 +251,15 @@ void lv_ffmpeg_player_set_auto_restart(lv_obj_t * obj, bool en)
     player->auto_restart = en;
 }
 
+void lv_ffmpeg_player_set_playdone_event(lv_obj_t * obj, void (*event_cb)(lv_obj_t * obj, void * user_data),
+                                         void * user_data)
+{
+    LV_ASSERT_OBJ(obj, MY_CLASS);
+    lv_ffmpeg_player_t * player = (lv_ffmpeg_player_t *)obj;
+    player->event_cb = event_cb;
+    player->user_data = user_data;
+}
+
 /**********************
  *   STATIC FUNCTIONS
  **********************/
@@ -816,6 +825,9 @@ static void lv_ffmpeg_player_frame_update_cb(lv_timer_t * timer)
     int has_next = ffmpeg_update_next_frame(player->ffmpeg_ctx);
 
     if(has_next < 0) {
+        if(player->event_cb) {
+            player->event_cb(obj, obj->user_data);
+        }
         lv_ffmpeg_player_set_cmd(obj, player->auto_restart ? LV_FFMPEG_PLAYER_CMD_START : LV_FFMPEG_PLAYER_CMD_STOP);
         return;
     }
@@ -834,6 +846,8 @@ static void lv_ffmpeg_player_constructor(const lv_obj_class_t * class_p,
 
     lv_ffmpeg_player_t * player = (lv_ffmpeg_player_t *)obj;
 
+    player->event_cb = NULL;
+    player->user_data = NULL;
     player->auto_restart = false;
     player->ffmpeg_ctx = NULL;
     player->timer = lv_timer_create(lv_ffmpeg_player_frame_update_cb,
